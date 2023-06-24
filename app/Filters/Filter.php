@@ -2,7 +2,6 @@
 
 namespace App\Filters;
 
-use App\Traits\Filter as TraitsFilter;
 use Illuminate\Http\Request;
 
 use Exception;
@@ -10,7 +9,7 @@ use Illuminate\Support\Arr;
 
 abstract class Filter {
 
-    use TraitsFilter;
+    private array $where = [];
 
     protected array $allowedOperatorForEachField = [];
 
@@ -64,4 +63,46 @@ abstract class Filter {
         return $this->where;
     }
     
+    public function where(array|string $value, string $typeOfFilter, string $fieldForFilter) {
+
+        switch ($typeOfFilter) {
+
+            case 'in':
+                
+                $this->where["whereIn"] = [
+                    $fieldForFilter,
+                    $this->filtersAssociation[$typeOfFilter],
+                    $value,
+                ];
+        
+                break;
+            
+            case "dt":
+
+                $searchByTime = [
+                    "d" => "whereDay",
+                    "m" => "whereMonth",
+                    "y" => "whereYear",
+                ];
+
+                $this->where[Arr::get($searchByTime, $value[0])] = [
+                        $fieldForFilter,
+                        $value[0],
+                        $value[1],
+                ];
+
+                break;
+
+            default:
+
+                $this->where["where"][] = [
+                    $fieldForFilter,
+                    $this->filtersAssociation[$typeOfFilter],
+                    $value,
+                ];
+
+                break;
+        }
+
+    }
 }

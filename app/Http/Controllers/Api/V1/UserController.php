@@ -2,26 +2,40 @@
 
 namespace App\Http\Controllers\Api\V1;
 
-use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\Request;
 use App\Traits\HttpResponse;
 use App\Models\User;
 use App\Http\Resources\V1\UserResource;
 use App\Http\Controllers\Controller;
+use App\Traits\PaginateValidation;
 
 class UserController extends Controller
 {
-
+    use PaginateValidation;
     use HttpResponse;
 
-    public function index()
+    public function index(Request $request)
     {
-        return UserResource::collection(User::paginate(10));
+        return UserResource::collection(User::paginate($this->validation($request)));
     }
 
-    public function show(User $user)
+    public function show($id)
     {
+        $validator = Validator::make(["id" => $id], [
+            "id" => "required|numeric"
+        ]);
+
+        if($validator->fails()) {
+            return $this->error("Data invalid", 422, $validator->errors());
+        }
+
+        $user = User::find($id);
+
+        if(!$user) {
+            return $this->error("User not found", 404, ["id" => "Id invalid"]);
+        }
+
         return new UserResource($user);
     }
 
@@ -47,18 +61,27 @@ class UserController extends Controller
             return $this->success("User updated with success", 200, new UserResource($user));
         }
 
-        return $this->error("Updated failed", 400);
+        return $this->error("Updated failed");
     }
 
-    public function destroy(User $user)
+    public function destroy($id)
     {
+        $validator = Validator::make(["id" => $id], [
+            "id" => "required|numeric"
+        ]);
 
-        $deleted = $user->delete();
-
-        if($deleted) {
-            return $this->success("User deleted with success");
+        if($validator->fails()) {
+            return $this->error("Data invalid", 422, $validator->errors());
         }
+
+        $user = User::find($id);
+
+        if(!$user) {
+            return $this->success("Failed to delete user");
+        }
+
+        $user->delete();
         
-        return $this->error("Failed to delete user");
+        return $this->success("Failed to delete user");
     }
 }

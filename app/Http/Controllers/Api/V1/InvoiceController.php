@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Resources\V1\InvoiceResource;
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
+use App\Models\User;
 use App\Traits\HttpResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -13,8 +14,6 @@ use Illuminate\Validation\Rule;
 class InvoiceController extends Controller {
 
     use HttpResponse;
-
-    private $numberOfInvoicesPerPage = 10;
 
     public function __construct()
     {
@@ -44,6 +43,10 @@ class InvoiceController extends Controller {
             return $this->error("Data invalid",  422, $validator->errors());
         }
 
+        if(!User::find($validator->validated()['user_id'])) {
+            return $this->error("Argument invalid", 404, ["user_id" => "Id invalid"]);
+        }
+
         $created = Invoice::create($validator->validated());
 
         if(!$created) {
@@ -53,12 +56,26 @@ class InvoiceController extends Controller {
         return $this->success("Invoice created with success", 200, new InvoiceResource($created->load('user')));
     }
 
-    public function show(Invoice $invoice)
+    public function show($id)
     {
+        $validator = Validator::make(["id" => $id], [
+            "id" => "required|numeric"
+        ]);
+
+        if($validator->fails()) {
+            return $this->error("Data invalid", 422, $validator->errors());
+        }
+
+        $invoice = Invoice::find($id);
+
+        if(!$invoice) {
+            return $this->error("Invoice not found", 404, ["id" => "Id invalid"]);
+        }
+
         return new InvoiceResource($invoice);
     }
 
-    public function update(Request $request, Invoice $invoice)
+    public function update(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
             "user_id" => "required|numeric",
@@ -78,6 +95,16 @@ class InvoiceController extends Controller {
 
         $validated = (object) $validator->validated();
 
+        if(!User::find($validated->user_id)) {
+            return $this->error("Updated failed", 404, ["user_id" => "User id not found"]);
+        }
+
+        $invoice = Invoice::find($id);
+
+        if(!$invoice) {      
+            return $this->error("Updated failed", 404, ["id" => "Invoice id not found"]);
+        }
+    
         $updated = $invoice->update([
             "user_id" => $validated->user_id,
             "type" => $validated->type,
@@ -93,8 +120,20 @@ class InvoiceController extends Controller {
         return $this->error("Updated failed", 400);
     }
 
-    public function destroy(Invoice $invoice)
+    public function destroy($id)
     {
-        
+        $validator = Validator::make(["id" => $id], [
+            "id" => "required|numeric"
+        ]);
+
+        if($validator->fails()) {
+            return $this->error("Data invalid", 422, $validator->errors());
+        }
+
+        if(Invoice::find($id)) {
+            return $this->success("Invoice deleted with success");
+        }
+
+        return $this->error("Deleted failed", 404, ["id" => "Id invalid"]);
     }
 }

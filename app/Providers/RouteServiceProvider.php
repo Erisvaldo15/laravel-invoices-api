@@ -24,7 +24,7 @@ class RouteServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Route::resourceVerbs([
+       Route::resourceVerbs([
             'auth.destroy' => 'logout'
         ]);
 
